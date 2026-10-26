@@ -1,0 +1,25 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# Variable files may carry account ids and domain names
+*.tfvars
+!example.tfvars
+
+# Local config, never committed
+**/config/local.json
+
+# Credentials come from the AWS CLI profile and are never committed
+.aws/
+*.pem
+*.ppk
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
