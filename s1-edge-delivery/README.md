@@ -3,6 +3,41 @@
 **Status:** Built and measured, 27 October 2026. Still standing at time of writing.
 **Domains:** Design High-Performing Architectures (24%), Design Cost-Optimized Architectures (20%)
 
+## The whole thing in plain words
+
+Imagine you sell one book. You keep every copy in a single warehouse in Oregon.
+
+Someone in Paris orders it. The parcel crosses the Atlantic. It works, but they
+wait.
+
+So you open a small shop in every city. The warehouse stays where it is, but
+each shop keeps a copy of the book on the shelf. Now the Paris customer walks
+round the corner.
+
+That is all a CDN is. The warehouse is the S3 bucket. The shops are CloudFront.
+
+| In the shop analogy | The real thing |
+|---|---|
+| The warehouse, one location, holds the only real copies | S3 bucket in us-west-2 |
+| Hundreds of local shops holding copies | CloudFront edge locations |
+| Phoning the directory to find your nearest shop | DNS, answered by Route 53 |
+| The shop already has it on the shelf | cache hit, 69 ms |
+| The shop has to phone the warehouse and wait | cache miss, 171 ms |
+| The warehouse only sells to shops, never to the public | Origin Access Control, and why going direct gives a 403 |
+| A guard on the shop door | WAF |
+| The shop's ID badge, so you know it is really yours | the TLS certificate |
+
+**The experiment in this project** was to time the same book both ways on
+purpose. One shelf is allowed to keep a copy. The other is told to phone the
+warehouse every single time, even though the book is right there.
+
+Everything else is identical: same shop, same customer, same book. So the
+difference in time is caused by the phone call to the warehouse and nothing
+else.
+
+The answer: **the phone call is about 100 milliseconds, and it is roughly
+two-thirds of the total wait.**
+
 ## What it proves
 
 Caching removes the origin round trip, and the origin round trip is almost the
