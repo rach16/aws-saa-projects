@@ -7,7 +7,7 @@
 
 Caching removes the origin round trip, and the origin round trip is almost the
 entire cost of a small request. Measured here at **2.4x on time to first byte**,
-with the cached path also an order of magnitude more consistent.
+reproduced across three runs.
 
 The second half of the original claim, that CDN egress costs less per GB than
 origin egress, is **not proved here.** See "What is not built".
@@ -57,19 +57,43 @@ cached:   x-cache: Hit from cloudfront    age: 42052   content-length: 2479
 nocache:  x-cache: Miss from cloudfront                content-length: 2479
 ```
 
-### Consistency, which turned out to be the better finding
+### Consistency: a claim this project had to withdraw
 
-Raw samples from the `Deployed` run:
+Raw samples from the `Deployed` run, connection setup discarded:
 
 ```
-cached    0.0659  0.0678  0.0703  0.0710     spread   5 ms
-uncached  0.1514  0.1599  0.1826  0.3442     spread 193 ms
+cached    0.0659  0.0678  0.0703  0.0710            spread   5 ms
+uncached  0.1514  0.1599  0.1826  0.3442            spread 193 ms
 ```
 
-The cached path is not just faster, it is **predictable**. The uncached path
-spans a 193 ms range across four consecutive requests because every one of them
-depends on the origin being responsive at that instant. A median hides this; the
-raw samples do not.
+That looked like a second finding, and a better one than the median: a cache hit
+is not only faster but far more predictable, because it never waits on the
+origin.
+
+Running `verify.sh` an hour later did not reproduce it:
+
+```
+cached    0.0629  0.0699  0.0716  0.0741  0.1603    spread  97 ms
+uncached  0.1157  0.1559  0.1816  0.1885  0.2467    spread 131 ms
+```
+
+97 ms against 131 ms is not that story. One cached sample came back at 160 ms,
+as slow as a typical origin fetch.
+
+**The predictability claim is withdrawn.** It was generalised from four samples
+in one run, which cannot establish a distribution, and the next run contradicted
+it. The mechanism is plausible, since a cache hit has fewer things that can go
+slowly, but plausible is not measured.
+
+Doing it properly needs hundreds of samples and a percentile, p95 or p99 rather
+than a spread, over a window long enough to catch the origin having a bad
+moment. That is a different measurement from the one this project set out to
+take, and it is not taken here.
+
+What survives both runs is the median, at 2.4x to 2.5x every time.
+
+Captured output from the run that contradicted the claim is in
+`results/verify-2026-10-27.txt`.
 
 ### Where the time actually goes
 

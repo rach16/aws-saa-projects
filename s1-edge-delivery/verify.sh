@@ -31,7 +31,7 @@ for _ in 1 2 3 4 5; do
   curl -s -o /dev/null -w "cached %{time_starttransfer}  " "https://$HOST/index.html"
   curl -s -o /dev/null -w "nocache %{time_starttransfer}\n" "https://$HOST/nocache/index.html"
 done
-echo "(discard the first row: connection setup, not cache)"
+echo "(DNS and TLS are already warm from the checks above, so no row is a setup outlier)"
 
 echo
 echo "== Same bytes on both paths =="

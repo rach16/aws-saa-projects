@@ -1,0 +1,35 @@
+$ ./verify.sh
+# 2026-10-27, ~09:30 PDT, from San Bruno CA. WAF in blocking mode.
+
+== DNS ==
+65.8.180.21
+65.8.180.72
+65.8.180.48
+65.8.180.6
+
+== HTTPS and redirect ==
+https  200  tls_verify=0  ttfb=0.238664
+http   301  -> https://cedar.banik.dev/
+
+== Origin is private ==
+s3 direct  403  (expect 403)
+
+== Cache hit ratio across all objects ==
+   5 x-cache: Hit from cloudfront
+
+== TTFB, cached against cache-disabled ==
+cached 0.074100  nocache 0.181613
+cached 0.071619  nocache 0.188503
+cached 0.069877  nocache 0.246652
+cached 0.062946  nocache 0.115697
+cached 0.160316  nocache 0.155910
+
+== Same bytes on both paths ==
+content-length: 2479
+x-cache: Hit from cloudfront
+content-length: 2479
+x-cache: Miss from cloudfront
+
+# Medians: cached 72 ms, uncached 182 ms, 2.5x.
+# This run contradicts the variance claim made from the earlier run.
+# Cached spread here is 97 ms, not 5 ms. See README.md.
