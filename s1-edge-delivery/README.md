@@ -35,6 +35,55 @@ Both serve the same five files from the same bucket. Same bytes, same edge, same
 TLS session, compression off on both. The only variable is whether CloudFront is
 allowed to keep a copy.
 
+## How it fits together
+
+```mermaid
+flowchart TB
+    V["Viewer"]
+
+    subgraph dns["DNS, resolved once then cached"]
+        PB["Registrar zone: banik.dev<br/>4 NS records delegate 'cedar'"]
+        R53["Route 53 hosted zone<br/>cedar.banik.dev<br/>alias A at apex"]
+        PB -->|"referral, zone cut"| R53
+    end
+
+    subgraph cf["CloudFront E3414HZ9GECD7Y, anycast edge"]
+        WAF["WAF core protections<br/>blocking"]
+        BEH{"path pattern"}
+        B0["precedence 0<br/>/nocache/*<br/>CachingDisabled"]
+        B1["precedence 1<br/>Default (*)<br/>CachingOptimized"]
+        WAF --> BEH
+        BEH -->|"/nocache/*"| B0
+        BEH -->|"everything else"| B1
+    end
+
+    ACM["ACM certificate<br/>us-east-1<br/>TLSv1.3_2025"]
+    S3[("S3: cedar-clinic-site-7412<br/>us-west-2<br/>Block Public Access ON")]
+
+    V -->|"1 . which IP?"| PB
+    R53 -->|"2 . four edge IPs"| V
+    V -->|"3 . HTTPS GET"| WAF
+    B1 -->|"origin fetch on miss only"| S3
+    B0 -->|"origin fetch every time"| S3
+    ACM -.->|"terminates TLS at the edge"| cf
+    V -.->|"direct request: 403"| S3
+```
+
+Reading the diagram:
+
+- **Route 53 is consulted once, then nothing passes through it.** It answers a
+  question and leaves. Traffic goes viewer to edge to origin, never through DNS.
+  This is why DNS cannot be a bottleneck, and also why DNS failover is bounded
+  by TTL while an in-path failover is not.
+- **Both arrows into S3 are signed with Origin Access Control.** The bucket
+  policy allows the CloudFront service principal and nobody else, which is what
+  makes the dotted arrow a 403.
+- **The two behaviours are the experiment.** Identical files, identical edge,
+  identical TLS session. The only difference is whether the edge is permitted to
+  keep a copy, which is what isolates caching from everything else.
+- **The certificate is in us-east-1 while the bucket is in us-west-2.** Not a
+  mistake. CloudFront reads certificates only from us-east-1.
+
 ## Results
 
 ### Time to first byte, cached against uncached
