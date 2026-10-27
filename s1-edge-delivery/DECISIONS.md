@@ -146,24 +146,48 @@ The original scope called for "a second origin in another region behind a
 latency-based routing policy". That combination is architecturally confused, and
 working out why was more useful than building it would have been.
 
-CloudFront is already an anycast network. A viewer in Frankfurt reaches a
-Frankfurt edge because of BGP, not because of DNS, and the distribution serves
-them from whichever origin it is configured with. Putting Route 53 latency-based
-routing in front of a CloudFront distribution adds a DNS-level decision about
-something the network layer has already decided, and decided with better
-information.
+CloudFront already steers each viewer, and it does it mainly through DNS. When a
+browser resolves the distribution's domain name, CloudFront's own DNS returns
+edge addresses chosen for where the query came from, so a viewer in Frankfurt
+gets Frankfurt edge addresses. Putting Route 53 latency-based routing in front of
+that adds a second DNS decision on top of one CloudFront has already made with
+better information: Route 53 would be choosing between two origins, while
+CloudFront is choosing between hundreds of edges.
+
+An earlier version of this file said "CloudFront is already an anycast network",
+which is loose enough to be wrong. **Anycast Static IPs are a separate paid
+CloudFront feature**, bought when a viewer needs a fixed set of IP addresses to
+allowlist. This project does not use it, and the steering described above is DNS,
+not BGP.
 
 Latency-based routing belongs in front of **regional** endpoints: two ALBs, two
 API Gateway deployments, two regional stacks. It is the right tool when there
-genuinely are two places to send traffic and no anycast layer above them.
+genuinely are two places to send traffic and no CDN above them making the same
+choice.
 
 The thing that *would* have been correct here is a CloudFront **origin group**:
 two origins, a primary and a failover, with CloudFront switching on origin
 errors. That is origin failover, it involves no DNS at all, and conflating it
 with latency routing is the mistake the exam tests.
 
-Not built, for time. Recorded because knowing when a routing policy is wrong is
-harder and more testable than knowing how to configure one.
+### Correction: an origin group was never buildable here
+
+An earlier version of this file implied the origin group was skipped for time.
+It was not available to skip. **Origin groups require the CloudFront Premium
+plan at $1,000/month**, which the console shows as an upgrade prompt on the
+Origins tab. The Free plan this project runs on does not include them.
+
+So the dropped scope item had two independent reasons, not one: the routing
+policy as originally specified was the wrong construct, and the right construct
+was behind a paywall three orders of magnitude above this project's budget.
+
+The $1,000 figure was read off the CloudFront console's plan comparison, not the
+Pricing API. Same provenance as the WAF correction above, and the same caveat
+applies.
+
+Recorded because knowing when a routing policy is wrong is harder and more
+testable than knowing how to configure one, and because "not built, for time" was
+a more flattering reason than the real one.
 
 ## Alias record, not CNAME, at the apex
 

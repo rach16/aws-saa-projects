@@ -90,7 +90,7 @@ flowchart TB
         PB -->|"referral, zone cut"| R53
     end
 
-    subgraph cf["CloudFront E3414HZ9GECD7Y, anycast edge"]
+    subgraph cf["CloudFront E3414HZ9GECD7Y, global edge network"]
         WAF["WAF core protections<br/>blocking"]
         BEH{"path pattern"}
         B0["precedence 0<br/>/nocache/*<br/>CachingDisabled"]
@@ -245,10 +245,11 @@ assumption recorded in `DECISIONS.md`.
 |---|---|
 | Time to first byte from other geographies | Needs a vantage point outside one laptop. The honest version is an EC2 instance in another region; a public speed-test service gives numbers that cannot be reproduced, and this repository does not publish figures it cannot stand behind. |
 | Per-GB egress, S3 direct against CloudFront | Not taken from the Pricing API. No rate is quoted rather than quoting one from memory. |
-| Second origin in another region with latency-based routing | Dropped deliberately, and the reason is a finding rather than a shortfall. Route 53 latency-based routing in front of CloudFront is the wrong tool: CloudFront's anycast already sends each viewer to the nearest edge, so a DNS-level latency decision duplicates a choice that has already been made better. See `DECISIONS.md`. |
+| Second origin in another region with latency-based routing | Dropped for two independent reasons. Route 53 latency-based routing in front of CloudFront is the wrong tool: CloudFront's own DNS already returns edge addresses chosen for where the query came from, so a DNS-level latency decision duplicates a choice already made with better information. The construct that would have been right, a CloudFront origin group, needs the Premium plan at $1,000/month. See `DECISIONS.md`. |
 
 The first two are time, not principle. The third would be wrong to build as
-originally scoped.
+originally scoped, and the correct version of it is priced out of this
+repository.
 
 ## Run
 
