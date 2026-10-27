@@ -5,38 +5,46 @@
 
 ## The whole thing in plain words
 
-Imagine you sell one book. You keep every copy in a single warehouse in Oregon.
+The site is five files: three pages, a stylesheet and a logo. They sit in one
+folder in Oregon.
 
-Someone in Paris orders it. The parcel crosses the Atlantic. It works, but they
-wait.
+Without a CDN, every visitor's browser asks Oregon for each file. Someone in
+Paris waits for the Atlantic crossing, five times over.
 
-So you open a small shop in every city. The warehouse stays where it is, but
-each shop keeps a copy of the book on the shelf. Now the Paris customer walks
-round the corner.
+CloudFront keeps copies of those five files on servers all over the world. The
+Paris visitor is served from a server near Paris. The folder in Oregon never
+moves and never changes.
 
-That is all a CDN is. The warehouse is the S3 bucket. The shops are CloudFront.
+Four other pieces make that work:
 
-| In the shop analogy | The real thing |
+| Service | What it does for `cedar.banik.dev` |
 |---|---|
-| The warehouse, one location, holds the only real copies | S3 bucket in us-west-2 |
-| Hundreds of local shops holding copies | CloudFront edge locations |
-| Phoning the directory to find your nearest shop | DNS, answered by Route 53 |
-| The shop already has it on the shelf | cache hit, 69 ms |
-| The shop has to phone the warehouse and wait | cache miss, 171 ms |
-| The warehouse only sells to shops, never to the public | Origin Access Control, and why going direct gives a 403 |
-| A guard on the shop door | WAF |
-| The shop's ID badge, so you know it is really yours | the TLS certificate |
+| S3 | Holds the five files, in Oregon |
+| CloudFront | Keeps copies on servers near visitors |
+| Route 53 | Tells a browser which server to ask |
+| ACM | The certificate proving the site is really yours |
+| WAF | Checks requests before they are served |
 
-**The experiment in this project** was to time the same book both ways on
-purpose. One shelf is allowed to keep a copy. The other is told to phone the
-warehouse every single time, even though the book is right there.
+The Oregon folder is locked so that only CloudFront can read it. Anyone asking
+it directly is refused, which is the `403` that appears throughout this
+document. That matters because an unlocked folder can be read straight past
+CloudFront, which costs more, skips the cache and skips the filter.
 
-Everything else is identical: same shop, same customer, same book. So the
-difference in time is caused by the phone call to the warehouse and nothing
-else.
+### The experiment, in the same plain words
 
-The answer: **the phone call is about 100 milliseconds, and it is roughly
-two-thirds of the total wait.**
+A second copy of the same five files was put in the same folder, under a prefix
+called `/nocache/`. CloudFront was told it may keep a copy of the first set and
+may **not** keep a copy of the second.
+
+Same visitor, same server, same files, same encryption. The only difference is
+whether the nearby server is allowed to hold a copy, or has to ask Oregon every
+single time.
+
+- Allowed to hold a copy: **69 ms**
+- Has to ask Oregon: **171 ms**
+
+That 100 ms gap is the trip to Oregon and back. It is roughly two-thirds of the
+total wait, for a file of 2,479 bytes.
 
 ## What it proves
 
