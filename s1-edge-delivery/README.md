@@ -127,6 +127,77 @@ Reading the diagram:
 - **The certificate is in us-east-1 while the bucket is in us-west-2.** Not a
   mistake. CloudFront reads certificates only from us-east-1.
 
+## The lookup, step by step
+
+Four exchanges happen before any HTML moves, and each one is a different party
+answering a different question.
+
+| Step | Who is asked | Question | Answer |
+|---|---|---|---|
+| 1 | the root and `.dev` nameservers | where does `banik.dev` live? | Porkbun's nameservers |
+| 2 | Porkbun, authoritative for `banik.dev` | what is `cedar.banik.dev`? | a referral: ask these four Amazon nameservers |
+| 3 | one of those four Route 53 nameservers | what is `cedar.banik.dev`? | four CloudFront edge addresses |
+| 4 | one of those four addresses | `GET /index.html` over HTTPS | the page, from cache or from Oregon |
+
+**Only step 4 carries traffic.** Steps 1 to 3 are DNS, and they are cached for
+the record's TTL, so the next visitor on the same network starts at step 4. This
+is the same point the diagram makes: Route 53 answers a question and leaves.
+
+### Two sets of four, and they have nothing to do with each other
+
+The genuinely confusing part of this project is a coincidence rather than a
+concept. The number four appears twice, for unrelated reasons.
+
+| | `ns-1048.awsdns-03.org` and three others | `65.8.180.21` and three others |
+|---|---|---|
+| What it is | Route 53 nameservers | CloudFront edge addresses |
+| Its role | they **answer** the question | they **are** the answer |
+| Who sees it | the resolver, at steps 2 and 3 | the browser, at the end of step 3 |
+| Where it is written down | four NS records, by hand, at the registrar | nowhere, the alias resolves live |
+| What changes it | nothing, unless the zone is recreated | CloudFront, whenever it likes |
+
+The browser never receives a nameserver, and the registrar never stores an IP
+address. Keeping those two facts straight is most of understanding the setup.
+
+The four nameservers also sit under four different top-level domains, which is
+Route 53 doing availability engineering on your behalf: if one TLD's
+infrastructure has a bad day, the other three still resolve. Confirm with:
+
+```
+dig +short NS cedar.banik.dev
+```
+
+### The explanation to use under questioning
+
+Written out longhand, because an architecture you cannot narrate is one you
+cannot defend:
+
+> `banik.dev` was already registered at Porkbun, which is both the registrar and
+> the DNS host for it. To make `cedar.banik.dev` work I created a hosted zone in
+> Route 53. AWS assigned four nameservers and I added those four to Porkbun as NS
+> records, which hands `cedar` over to Amazon while Porkbun keeps answering for
+> `banik.dev`.
+>
+> When someone in India hits `cedar.banik.dev`, the lookup reaches Porkbun, which
+> says "ask Amazon". One of Amazon's four nameservers answers with four
+> CloudFront IP addresses near India. The browser makes an HTTPS request to one of
+> those IPs, secured by an ACM certificate in us-east-1.
+>
+> At the edge, WAF inspects the request. If it passes and that edge has a cached
+> copy, it is served in about 69 ms. If not, CloudFront fetches from the S3
+> bucket in Oregon, about 171 ms. That bucket is private: Origin Access Control
+> lets CloudFront in and refuses everyone else with a 403.
+
+Two pieces drop out of that narration every time it is given from memory, and
+both are easy to forget precisely because they are invisible when they work:
+
+- **The certificate.** `.dev` is on the HSTS preload list, so browsers refuse
+  plain HTTP for it outright. No certificate means no site at all, not a warning
+  the visitor can click through.
+- **The private bucket.** The 403 from the S3 endpoint is the proof that the
+  only way in is through CloudFront, which is what makes the cache, the WAF and
+  the cheaper egress unavoidable rather than optional.
+
 ## Results
 
 ### Time to first byte, cached against uncached
