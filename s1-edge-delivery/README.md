@@ -110,7 +110,29 @@ flowchart TB
     B0 -->|"origin fetch every time"| S3
     ACM -.->|"terminates TLS at the edge"| cf
     V -.->|"direct request: 403"| S3
+
+    classDef net fill:#8C4FFF,stroke:#6B2FD6,color:#ffffff,stroke-width:2px
+    classDef sec fill:#DD344C,stroke:#B01E33,color:#ffffff,stroke-width:2px
+    classDef sto fill:#7AA116,stroke:#5A780F,color:#ffffff,stroke-width:2px
+    classDef ext fill:#5F6B7A,stroke:#3E4855,color:#ffffff,stroke-width:2px
+    classDef pick fill:#FFFFFF,stroke:#8C4FFF,color:#232F3E,stroke-width:2px
+
+    class R53,B0,B1 net
+    class WAF,ACM sec
+    class S3 sto
+    class V,PB ext
+    class BEH pick
+
+    style dns fill:none,stroke:#8C4FFF,stroke-width:1px,stroke-dasharray:4 4
+    style cf fill:none,stroke:#8C4FFF,stroke-width:1px,stroke-dasharray:4 4
 ```
+
+Colours are AWS's own service categories, not decoration: **purple** for
+networking and content delivery, **red** for security, identity and compliance,
+**green** for storage, **grey** for anything that is not AWS. The containers are
+left transparent with a coloured outline rather than filled, because GitHub
+renders this in both light and dark themes and a fill tuned for one looks wrong
+in the other.
 
 Reading the diagram:
 
