@@ -90,6 +90,24 @@ on, and gzip on HTML changes the bytes on the wire; comparing a compressed
 response against an uncompressed one would have measured compression, not
 caching. Both paths returned `content-length: 2479`.
 
+### Correction: compression was never switched off
+
+The paragraph above says compression was switched off on the `/nocache/*`
+behaviour so the comparison would not accidentally measure gzip. Reading the
+live distribution config while writing the Terraform showed `Compress: true` on
+**both** behaviours. It was never switched off.
+
+The measurement survives. `curl` sends no `Accept-Encoding` header unless told
+to, and CloudFront compresses only when the viewer asks for it, so neither
+response was compressed. Both returned `content-length: 2479` because both were
+the raw file, not because compression had been disabled. The two behaviours are
+also identical on this setting, so it could not have skewed one against the
+other.
+
+What was wrong is the explanation, not the result. Recorded because a correct
+number with a wrong reason attached is still a wrong claim, and because nothing
+caught it until the infrastructure was described in code.
+
 ## Behaviour precedence
 
 CloudFront evaluates path patterns in precedence order and takes the **first**
@@ -212,6 +230,28 @@ appear in the dropdown".
 ACM certificates used with CloudFront are free, and DNS validation renews
 automatically for as long as the validation CNAME stays in the zone. Deleting
 that record quietly breaks renewal, and the failure surfaces up to a year later.
+
+## Terraform by import, not by rebuild
+
+The stack was built by hand in the console, then described in hand-written HCL
+and imported. `terraform plan` now reports no changes. Details and layout are in
+`terraform/README.md`.
+
+The alternative was to destroy the console-built stack and `apply` a fresh one.
+Rejected: it takes the site down, a new hosted zone means four new name servers
+and a round of registrar edits and DNS propagation, and a successful `apply`
+only proves the code builds *something*. A clean plan against live
+infrastructure proves the code describes *this* thing, attribute by attribute.
+
+It is also the realistic skill. Inheriting infrastructure somebody clicked
+together is the normal case, and `import` plus an iterated plan is how you take
+ownership of it without an outage.
+
+Two attributes would have been silently overwritten on a first apply, because
+anything absent from the HCL is filled with the provider default rather than the
+real value: the hosted zone's empty `comment` would have become
+`Managed by Terraform`, and the distribution's `Name` tag would have been
+deleted. Stopping at "the import succeeded" would have shipped both.
 
 ## What this does not need
 

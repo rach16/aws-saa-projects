@@ -347,11 +347,21 @@ repository.
 
 ## Run
 
-Everything was built by hand in the console. `verify.sh` proves the result.
+Everything was built by hand in the console, then described in Terraform and
+imported. `verify.sh` proves the result from the outside. `terraform plan`
+proves the code matches what is running.
 
 ```
 ./verify.sh
 ```
+
+```
+cd terraform && terraform plan
+```
+
+Expect `No changes. Your infrastructure matches the configuration.` The 11
+resources, and why import beat destroy-and-rebuild, are in
+[`terraform/README.md`](./terraform/README.md).
 
 ## Costs
 
