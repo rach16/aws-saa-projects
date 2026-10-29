@@ -3,6 +3,11 @@
 **Status:** Built and measured, 27 October 2026. Still standing at time of writing.
 **Domains:** Design High-Performing Architectures (24%), Design Cost-Optimized Architectures (20%)
 
+**In one line:** served a static site globally over HTTPS from a private S3
+bucket through CloudFront and WAF, proved the cache was worth 2.4x on time to
+first byte against a cache-disabled control on the same edge, then imported the
+whole console-built stack into Terraform until `plan` reported no changes.
+
 ## The whole thing in plain words
 
 The site is five files: three pages, a stylesheet and a logo. They sit in one
