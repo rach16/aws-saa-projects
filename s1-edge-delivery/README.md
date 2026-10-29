@@ -81,58 +81,59 @@ allowed to keep a copy.
 ## How it fits together
 
 ```mermaid
-flowchart TB
-    V["Viewer"]
+graph TB
+    V["Viewer<br/>browser in India"]
+    PB["Porkbun: banik.dev<br/>4 NS records delegate 'cedar'"]
 
-    subgraph dns["DNS, resolved once then cached"]
-        PB["Registrar zone: banik.dev<br/>4 NS records delegate 'cedar'"]
-        R53["Route 53 hosted zone<br/>cedar.banik.dev<br/>alias A at apex"]
-        PB -->|"referral, zone cut"| R53
+    subgraph AWS["AWS Global Infrastructure"]
+        subgraph EDGE["Global edge network"]
+            R53["Route 53<br/>hosted zone cedar.banik.dev<br/>alias A at apex"]
+            WAF["AWS WAF<br/>core protections, blocking"]
+            CF["CloudFront E3414HZ9GECD7Y"]
+            B0["Precedence 0<br/>/nocache/*<br/>CachingDisabled"]
+            B1["Precedence 1<br/>Default (*)<br/>CachingOptimized"]
+        end
+        subgraph USE1["Region: us-east-1"]
+            ACM["ACM certificate<br/>TLSv1.3_2025"]
+        end
+        subgraph USW2["Region: us-west-2"]
+            S3["S3: cedar-clinic-site-7412<br/>Block Public Access ON"]
+        end
     end
 
-    subgraph cf["CloudFront E3414HZ9GECD7Y, global edge network"]
-        WAF["WAF core protections<br/>blocking"]
-        BEH{"path pattern"}
-        B0["precedence 0<br/>/nocache/*<br/>CachingDisabled"]
-        B1["precedence 1<br/>Default (*)<br/>CachingOptimized"]
-        WAF --> BEH
-        BEH -->|"/nocache/*"| B0
-        BEH -->|"everything else"| B1
-    end
-
-    ACM["ACM certificate<br/>us-east-1<br/>TLSv1.3_2025"]
-    S3[("S3: cedar-clinic-site-7412<br/>us-west-2<br/>Block Public Access ON")]
-
-    V -->|"1 . which IP?"| PB
-    R53 -->|"2 . four edge IPs"| V
-    V -->|"3 . HTTPS GET"| WAF
-    B1 -->|"origin fetch on miss only"| S3
-    B0 -->|"origin fetch every time"| S3
-    ACM -.->|"terminates TLS at the edge"| cf
+    V -.->|"1 . which IP?"| PB
+    PB -.->|"referral, zone cut"| R53
+    R53 -.->|"2 . four edge IPs"| V
+    V ==>|"3 . HTTPS GET"| WAF
+    WAF ==> CF
+    CF ==>|"/nocache/*"| B0
+    CF ==>|"everything else"| B1
+    B1 ==>|"origin fetch on miss only"| S3
+    B0 ==>|"origin fetch every time"| S3
+    ACM -.->|"terminates TLS at the edge"| CF
     V -.->|"direct request: 403"| S3
 
-    classDef net fill:#8C4FFF,stroke:#6B2FD6,color:#ffffff,stroke-width:2px
-    classDef sec fill:#DD344C,stroke:#B01E33,color:#ffffff,stroke-width:2px
-    classDef sto fill:#7AA116,stroke:#5A780F,color:#ffffff,stroke-width:2px
-    classDef ext fill:#5F6B7A,stroke:#3E4855,color:#ffffff,stroke-width:2px
-    classDef pick fill:#FFFFFF,stroke:#8C4FFF,color:#232F3E,stroke-width:2px
+    classDef aws fill:#FF9900,color:#232F3E,stroke:#CC7A00
+    classDef edge fill:#146EB4,color:#FFFFFF,stroke:#0F5389
+    classDef store fill:#569A31,color:#FFFFFF,stroke:#417525
+    classDef ext fill:#232F3E,color:#FFFFFF,stroke:#131A23
 
-    class R53,B0,B1 net
-    class WAF,ACM sec
-    class S3 sto
+    class R53,WAF,CF,ACM aws
+    class B0,B1 edge
+    class S3 store
     class V,PB ext
-    class BEH pick
-
-    style dns fill:none,stroke:#8C4FFF,stroke-width:1px,stroke-dasharray:4 4
-    style cf fill:none,stroke:#8C4FFF,stroke-width:1px,stroke-dasharray:4 4
 ```
 
-Colours are AWS's own service categories, not decoration: **purple** for
-networking and content delivery, **red** for security, identity and compliance,
-**green** for storage, **grey** for anything that is not AWS. The containers are
-left transparent with a coloured outline rather than filled, because GitHub
-renders this in both light and dark themes and a fill tuned for one looks wrong
-in the other.
+AWS brand palette: **orange** for the managed services, **blue** for the two
+cache behaviours, **green** for storage, **navy** for anything outside AWS.
+**Dotted arrows are DNS and carry no traffic.** Thick arrows are the request
+path. Text colour is set on every class rather than left to the theme, because
+the default light grey on `#FF9900` is unreadable.
+
+The nesting is the point of drawing it this way. `us-east-1` and `us-west-2` are
+separate boxes inside `AWS Global Infrastructure`, so the certificate sitting in
+a different region from the bucket is visible rather than something you have to
+be told.
 
 Reading the diagram:
 
