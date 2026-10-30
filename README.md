@@ -29,7 +29,7 @@ change with each revision of the exam, and the figures above are SAA-C03.
 
 | | Project | What it proves | Status |
 |---|---|---|---|
-| **S0** | [Cost sweeper](./s0-cost-sweeper) | Not a project, a tool. One script, every region, answering whether anything is still billing. | Planned |
+| **S0** | [Cost sweeper](./s0-cost-sweeper) | Not a project, a tool. One script, every region, answering whether anything is still billing. Found two KMS keys billing unnoticed on its first run. Reports no cost figures yet. | **Inventory done** |
 | **S1** | [Edge and static delivery](./s1-edge-delivery) | Caching removes the origin round trip, and that round trip is almost the whole cost of a small request. Measured at 2.4x on time to first byte. The egress half of the original claim is not proved and was withdrawn. | **Done** |
 | **S2** | [A VPC by hand, with no NAT Gateway](./s2-vpc-no-nat) | Private does not have to mean NAT. And stateful against stateless, proved with packets rather than definitions. | Planned |
 | **S3** | [Scale and self-healing](./s3-scale-self-healing) | Auto Scaling is not instant, which is why the exam wants a leading signal. | Planned |
